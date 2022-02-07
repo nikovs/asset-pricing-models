@@ -34,7 +34,7 @@ RWA_tab = RWA_tab.dropna(subset=['Equity Risk Premium'], axis=0)
 
 # List of GICS sectors
 sector_map={'Utilities':'XLU', 'Technology':'XLK', 'Basic Materials':'XLB', 'Industrials':'XLI', 'Healthcare': 'XLV',
-           'Financials': 'XLF', 'Energy':'XLE', 'Consumer Staples':'XLP', 'Consumer Discretionary':'XLY',
+           'Financials': 'XLF', 'Financial Services': 'XLF', 'Energy':'XLE', 'Consumer Staples':'XLP', 'Consumer Discretionary':'XLY',
            'Communication Services':'XLC', 'Real Estate':'XLRE'}
 
 # Risk free interest rate proxy list
@@ -307,7 +307,7 @@ param_card = dbc.Card([
             dcc.Input(
                 id="weight", type="text", placeholder="input ticker"),
                 lg=4, md=6, sm=8, width={"size": 4},),
-            dbc.Col(html.Button('Calculate', id='calc_button', n_clicks=0), width={"size": 3},)
+            dbc.Col(html.Button('Fit Data', id='calc_button', n_clicks=0), width={"size": 3},)
                  ]),
         html.Br(),
     ]),
@@ -385,7 +385,8 @@ app.layout = html.Div([
     html.Br(),
 
     dbc.Row(dbc.Col(html.H3("WQU Capstone Project"), width={'size':6, 'offset':1},),),
-    dbc.Row(dbc.Col(html.H6("Alfonso Chang, Duy Le, Nikolaus Siauw"), width={'size':6, 'offset':1},),),
+    dbc.Row(dbc.Col(html.H4("Alfonso Chang, Duy Le, Nikolaus Siauw"), width={'size':6, 'offset':1},),),
+    dbc.Row(dbc.Col(html.H6("Insert all parameters and click Fit Data button to process."), width={'size':6, 'offset':1},),),
     
     html.Br(),
     
