@@ -26,7 +26,7 @@ import datetime as dt
 #data
 # Import common databases
 
-Damodaran=pd.ExcelFile('ctryprem.xlsx')
+Damodaran=pd.ExcelFile('ctryprem.xlsx', engine= 'openpyxl')
 RWA_tab = pd.read_excel(Damodaran, 'Regional Weighted Averages',header=0,index_col=0)
 RWA_tab = RWA_tab.dropna(subset=['Equity Risk Premium'], axis=0)
 
