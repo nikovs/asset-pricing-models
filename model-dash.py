@@ -26,7 +26,7 @@ import datetime as dt
 #data
 # Import common databases
 
-Damodaran=pd.ExcelFile('ctryprem.xlsx')
+Damodaran=pd.ExcelFile('ctryprem.xlsx', engine= 'openpyxl')
 RWA_tab = pd.read_excel(Damodaran, 'Regional Weighted Averages',header=0,index_col=0)
 RWA_tab = RWA_tab.dropna(subset=['Equity Risk Premium'], axis=0)
 
@@ -236,11 +236,11 @@ param_card = dbc.Card([
                  ]),
         dbc.Row([dbc.Col(#ticker input
             dcc.Input(
-                id="ticker", type="text", placeholder="input ticker"),
+                id="ticker", type="text", placeholder="input target ticker"),
                 lg=4, md=6, sm=8, width={"size": 4},),
                  dbc.Col(#ref_ticker input
             dcc.Input(
-                id="ref_ticker", type="text", placeholder="input ticker"),
+                id="ref_ticker", type="text", placeholder="input benchmark ticker"),
                 lg=4, md=6, sm=8, width={"size": 4},),
                  dbc.Col(#country input
             dcc.Dropdown(id="country", placeholder='input country',
@@ -305,7 +305,7 @@ param_card = dbc.Card([
                  lg=4, md=6, sm=8, width={"size": 3},),
                  dbc.Col(#weight input
             dcc.Input(
-                id="weight", type="text", placeholder="input ticker"),
+                id="weight", type="text", placeholder="input weights"),
                 lg=4, md=6, sm=8, width={"size": 4},),
             dbc.Col(html.Button('Fit Data', id='calc_button', n_clicks=0), width={"size": 3},)
                  ]),
