@@ -115,12 +115,11 @@ def IntlCAPM( sector, beta_iM, alphas, rf):
 def apt(close, country, sector, rf):
 
     #interest rate, industrial production,fed funds, crude oil price
-    indicator_list = ['T5YIE', 'INDPRO', 'FEDFUNDS', 'DCOILWTICO'] 
+    indicator_list = ['T5YIE', 'FEDFUNDS', 'DCOILWTICO'] 
     indicator = pdr.DataReader(indicator_list, 'fred')
-    indicator['INDPRO'] = indicator['INDPRO'].pct_change()
     indicator['DCOILWTICO'] = indicator['DCOILWTICO'].pct_change()
     indicator = indicator.resample('M').mean().dropna()
-    indicator.columns = ['Inflation', 'IndustrialProduction', 'FedFunds', 'CrudeOilPrice']
+    indicator.columns = ['Inflation', 'FedFunds', 'CrudeOilPrice']
     
     sector_data=yf.download(sector[1], period='5y', interval='1d',progress=False)['Adj Close']
     sector_data = sector_data.resample('M').mean().pct_change().dropna()
@@ -135,10 +134,10 @@ def apt(close, country, sector, rf):
     
     #country risk
     data['CR'] = RWA_tab[RWA_tab.index==country]['Country Risk Premium'][0]
-    data = data[['Inflation', 'IndustrialProduction', 'FedFunds', 'CrudeOilPrice', sector[1], 'CR', 'excessReturn']].dropna()
+    data = data[['Inflation', 'FedFunds', 'CrudeOilPrice', sector[1], 'CR', 'excessReturn']].dropna()
     
     #fit data
-    formula =  "excessReturn~ Inflation+IndustrialProduction+FedFunds+CrudeOilPrice+{}+CR".format(sector[1])
+    formula =  "excessReturn~ Inflation+FedFunds+CrudeOilPrice+{}+CR".format(sector[1])
     model = lm.OLS.from_formula(formula, data = data).fit()
     
     #evaluate model
@@ -147,7 +146,7 @@ def apt(close, country, sector, rf):
     E_return=model.params[1:]@data.iloc[-1,:-1]+rf.iloc[-1]
     return E_return[0]*12*100,r2*100,mse,model
 
-def famafrench(factor, country, close, rf):
+def famafrench(factor, country, close, rf, econ_status):
     
     enddate = dt.datetime.strptime("2021-12-31", "%Y-%m-%d").date()
     startdate = enddate - dt.timedelta(days=365*5)
@@ -156,17 +155,28 @@ def famafrench(factor, country, close, rf):
     market=market.resample('M').mean().pct_change().dropna()
     
     #check factors, return error message if it is not 3 or 5
-    if factor==5:
+    if (factor==5) & (econ_status=='developed market'):
         #print('5 Factor Fama-French\n\n')
         FF = pd.read_csv('F-F_Research_Data_5_Factors_2x3_daily.csv', header=2, index_col=0).dropna()
         FF.index = pd.to_datetime(FF.index, format='%Y%m%d')
         FF.columns = ['Mkt_RF', 'SMB', 'HML', 'RMW', 'CMA', 'RF']
         FF = FF[['SMB', 'HML', 'RMW', 'CMA']]
-    if factor==3:  
+    if (factor==3) & (econ_status=='developed market'):  
         #print('3 Factor Fama-French\n\n')
         FF=pd.read_csv('F-F_Research_Data_Factors_Daily.csv', header=3, index_col=0).dropna()
         FF.index = pd.to_datetime(FF.index, format='%Y%m%d')
         FF.columns = ['Mkt_RF', 'SMB', 'HML', 'RF']
+        FF = FF[['SMB', 'HML']]
+        
+    if (factor==5) & (econ_status=='emerging market'):
+        #print('5 Factor Fama-French\n\n')
+        FF = pd.read_csv('Emerging_5_Factors.csv', header=2, index_col=0).dropna().head(390)
+        FF.index = pd.to_datetime(FF.index.str.rstrip(), format='%Y%m')
+        FF = FF[['SMB', 'HML', 'RMW', 'CMA']]
+    if (factor==3) & (econ_status=='emerging market'):  
+        #print('3 Factor Fama-French\n\n')
+        FF = pd.read_csv('Emerging_5_Factors.csv', header=2, index_col=0).dropna().head(390)
+        FF.index = pd.to_datetime(FF.index.str.rstrip(), format='%Y%m')
         FF = FF[['SMB', 'HML']]
     
     #calculate return and excess return
@@ -182,8 +192,8 @@ def famafrench(factor, country, close, rf):
     data['Mkt_RF']=market['Adj Close']-rf['rf']
     data['excessReturn'] = data['Adj Close']*100 - data['RF']
     RF=data['RF'].copy()
-    data = data[['Mkt_RF', 'SMB', 'HML', 'CR', 'excessReturn']].dropna()
-    
+    data = data.drop(['RF', 'Adj Close'], axis=1)
+    data = data.dropna()
     
     #fit model
     formula =  "excessReturn~ {}".format('+'.join(data.columns[:-1]))
@@ -376,6 +386,10 @@ app.layout = html.Div([
     ],className='rows2'),
     
     html.Br(),
+
+    dbc.Row(dbc.Col(html.H6(id='sec', children=[], className='ff_r2'), width={'offset':1},),),
+
+    html.Br(),
     
     dbc.Row([
         dbc.Col(
@@ -432,7 +446,8 @@ app.layout = html.Div([
      Output(component_id='model3_mse', component_property='children'),
      Output(component_id='model4_return', component_property='children'),
      Output(component_id='model4_r2', component_property='children'),
-     Output(component_id='model4_mse', component_property='children')],
+     Output(component_id='model4_mse', component_property='children'),
+     Output(component_id='sec', component_property='children')],
     [Input(component_id='ticker', component_property='value'),
      Input(component_id='ref_ticker', component_property='value'),
      Input(component_id='country', component_property='value'),
@@ -486,18 +501,20 @@ def update_graph(ticker, ref_ticker, country, rf_select, ff, countries, yn, weig
         model1 = ModifiedCAPM(close, CR, rf)
         model2 = IntlCAPM( sector, beta_iM, alphas, rf)
         model3 = apt(close, country, sector, rf)
-        model4 = famafrench(factor, country, close, rf)
+        model4 = famafrench(factor, country, close, rf, econ_status)
     
         o1 = [round(x, 4) for x in model1[:3]]
         o2 = [round(x, 4) for x in model2[:3]]
         o3 = [round(x, 4) for x in model3[:3]]
         o4 = [round(x, 4) for x in model4[:3]]
+
+        sec = "Examining {} sector for {}.".format(sector[0], econ_status)
         
         count += 1
     
     #return str(ticker), str(ref_ticker), str(country), str(rf), str(ff), str(countries), str(yn), str(weight), str(beta_iM), str(alphas), str(sector), str(econ_status)
     
-    return o1[0], o1[1], o1[2], o2[0], o2[1], o2[2], o3[0], o3[1], o3[2], o4[0], o4[1], o4[2]
+    return o1[0], o1[1], o1[2], o2[0], o2[1], o2[2], o3[0], o3[1], o3[2], o4[0], o4[1], o4[2], sec
     
     
 if __name__ == '__main__':
