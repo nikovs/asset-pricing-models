@@ -217,14 +217,14 @@ param_card = dbc.Card([
                  ]),
         dbc.Row([dbc.Col(#ticker input
             dcc.Input(
-                id="ticker", type="text", placeholder="input ticker"),
+                id="ticker", type="text", placeholder="Input ticker"),
                 lg=4, md=6, sm=8, width={"size": 4},),
                  dbc.Col(#ref_ticker input
             dcc.Input(
-                id="ref_ticker", type="text", placeholder="input ticker"),
+                id="ref_ticker", type="text", placeholder="Input ticker"),
                 lg=4, md=6, sm=8, width={"size": 4},),
                  dbc.Col(#country input
-            dcc.Dropdown(id="country", placeholder='input country',
+            dcc.Dropdown(id="country", placeholder='Input country',
                          options=list(RWA_tab.index),
                          multi=False,
                          value='10y'),
@@ -260,7 +260,7 @@ param_card = dbc.Card([
                          value=3),
                  lg=4, md=6, sm=8, width={"size": 3},),
                  dbc.Col(#countries input
-            dcc.Dropdown(id="countries", placeholder='input country(ies)',
+            dcc.Dropdown(id="countries", placeholder='Input country(ies)',
                          options=list(RWA_tab.index),
                          multi=True),
                  lg=4, md=6, sm=8, width={"size": 3},),
@@ -286,7 +286,7 @@ param_card = dbc.Card([
                  lg=4, md=6, sm=8, width={"size": 3},),
                  dbc.Col(#weight input
             dcc.Input(
-                id="weight", type="text", placeholder="input ticker"),
+                id="weight", type="text", placeholder="Input weights"),
                 lg=4, md=6, sm=8, width={"size": 4},),
             dbc.Col(html.Button('Fit Data', id='calc_button', n_clicks=0), width={"size": 3},)
                  ]),
