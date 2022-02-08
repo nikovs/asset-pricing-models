@@ -51,14 +51,14 @@ count = 0
 
 #functions
 
-def ModifiedCAPM(close, CR, rf):
+def ModifiedCAPM(close, CR, rf, startdate, enddate):
     
     close = close.resample('M').mean().pct_change().dropna()
     data = pd.DataFrame(close).merge(rf, how='left', left_index=True, right_index=True)
     data['excessReturn'] = data['Adj Close'] - data['rf']
     
     #calculate excess market return
-    market=yf.download('SPY', period='5y', interval='1d',progress=False)['Adj Close']
+    market=yf.download('SPY', start=startdate,end=enddate, interval='1d',progress=False)['Adj Close']
     market=market.resample('M').mean().pct_change().dropna()
     data['excessMarket']=market-data['rf']
     
@@ -71,18 +71,18 @@ def ModifiedCAPM(close, CR, rf):
     
     return (data['rf'][-1] + ols.params[0]*data.excessMarket[-1]+CR)*100*12, ols.rsquared*100,ols.mse_resid,ols
 
-def IntlCAPM( sector, beta_iM, alphas, rf):
+def IntlCAPM( sector, beta_iM, alphas, rf, startdate, enddate):
     
     #calculate return and excess return of the sector
 
-    close=yf.download(sector[1], period='5y', interval='1d',progress=False)['Adj Close']
+    close=yf.download(sector[1], start=startdate,end=enddate, interval='1d',progress=False)['Adj Close']
         
     close = close.resample('M').mean().pct_change().dropna()
     data = pd.DataFrame(close).merge(rf, how='left', left_index=True, right_index=True)
     data['excessSectorReturn'] = data['Adj Close'] - data['rf']
     
     #calculate excess market return
-    market=yf.download('SPY', period='5y', interval='1d',progress=False)['Adj Close']
+    market=yf.download('SPY', start=startdate,end=enddate, interval='1d',progress=False)['Adj Close']
     market=market.resample('M').mean().pct_change().dropna()
     data['excessMarket']=market-data['rf']
     
@@ -112,7 +112,7 @@ def IntlCAPM( sector, beta_iM, alphas, rf):
     return  Int_R*100*12,ols.rsquared*100, ols.mse_resid
 
 
-def apt(close, country, sector, rf):
+def apt(close, country, sector, rf, startdate, enddate):
 
     #interest rate, industrial production,fed funds, crude oil price
     indicator_list = ['T5YIE', 'FEDFUNDS', 'DCOILWTICO'] 
@@ -121,7 +121,7 @@ def apt(close, country, sector, rf):
     indicator = indicator.resample('M').mean().dropna()
     indicator.columns = ['Inflation', 'FedFunds', 'CrudeOilPrice']
     
-    sector_data=yf.download(sector[1], period='5y', interval='1d',progress=False)['Adj Close']
+    sector_data=yf.download(sector[1], start=startdate,end=enddate, interval='1d',progress=False)['Adj Close']
     sector_data = sector_data.resample('M').mean().pct_change().dropna()
     indicator[sector[1]] = sector_data
     
@@ -146,13 +146,11 @@ def apt(close, country, sector, rf):
     E_return=model.params[1:]@data.iloc[-1,:-1]+rf.iloc[-1]
     return E_return[0]*12*100,r2*100,mse,model
 
-def famafrench(factor, country, close, rf, econ_status):
+def famafrench(factor, country, close, rf, econ_status, startdate, enddate):
     
-    enddate = dt.datetime.strptime("2021-12-31", "%Y-%m-%d").date()
-    startdate = enddate - dt.timedelta(days=365*5)
-    
-    market = yf.download(tickers='SPY', period='5y', interval='1d',progress=False)[['Adj Close']]
+    market = yf.download(tickers='SPY', start=startdate,end=enddate, interval='1d',progress=False)[['Adj Close']]
     market=market.resample('M').mean().pct_change().dropna()
+    market.columns = ['Mkt']
     
     #check factors, return error message if it is not 3 or 5
     if (factor==5) & (econ_status=='developed market'):
@@ -181,18 +179,21 @@ def famafrench(factor, country, close, rf, econ_status):
     
     #calculate return and excess return
     close = pd.DataFrame(close).pct_change().dropna()
+    close = close.resample('M').mean().dropna()
+    FF = FF.resample('M').mean().dropna()
     data = close[['Adj Close']].merge(FF, how='left', left_index=True, right_index=True)
-    data['RF'] = rf['rf']
+    data = data.merge(market, how='left', left_index=True, right_index=True)
     
+
     #country risk
     if country not in RWA_tab.index:
         country = 'Global'
     data['CR'] = RWA_tab[RWA_tab.index==country]['Country Risk Premium'][0]
-    data = data.resample('M').mean().dropna()
-    data['Mkt_RF']=market['Adj Close']-rf['rf']
-    data['excessReturn'] = data['Adj Close']*100 - data['RF']
-    RF=data['RF'].copy()
-    data = data.drop(['RF', 'Adj Close'], axis=1)
+    data = data.merge(rf, how='left', left_index=True, right_index=True)
+    data['Mkt_RF']=data['Mkt']-data['rf']
+    data['excessReturn'] = data['Adj Close']*100 - data['rf']
+    RF=data['rf'].copy()
+    data = data.drop(['rf', 'Adj Close', 'Mkt'], axis=1)
     data = data.dropna()
     
     #fit model
@@ -463,6 +464,9 @@ def update_graph(ticker, ref_ticker, country, rf_select, ff, countries, yn, weig
     
     global count
     factor = ff
+    
+    enddate = dt.datetime.strptime("2021-12-31", "%Y-%m-%d").date()
+    startdate = enddate - dt.timedelta(days=365*5)
 
     #Economic status of the country
     if country_status[country_status.country==country]['hdi2019'].values >= 0.80:
@@ -470,11 +474,12 @@ def update_graph(ticker, ref_ticker, country, rf_select, ff, countries, yn, weig
     else:
         econ_status = 'emerging market'
 
-    #calculate return and excess return
+    #prepare stock data
+    #print('Downloading Data')
     if econ_status == 'developed market':
-        close=yf.download(ticker, period='5y', interval='1d',progress=False)['Adj Close']
+        close=yf.download(ticker, start=startdate,end=enddate, interval='1d', progress=False)['Adj Close']
     else:
-        close=yf.download(ref_ticker, period='5y', interval='1d',progress=False)['Adj Close']
+        close=yf.download(ref_ticker, start=startdate,end=enddate, interval='1d',progress=False)['Adj Close']
         
     #Sector - automatically identified based on Ticker
     if econ_status == 'developed market':
@@ -493,15 +498,15 @@ def update_graph(ticker, ref_ticker, country, rf_select, ff, countries, yn, weig
     CR=RWA_tab.loc[country,'Country Risk Premium']
     
     # load risk free interest rate
-    rf = yf.download(tickers=Rf_map[rf_select], period='5y', interval='1d',progress=False)[['Adj Close']]
+    rf = yf.download(tickers=Rf_map[rf_select], start=startdate,end=enddate, interval='1d',progress=False)[['Adj Close']]
     rf = rf[['Adj Close']].resample('M').mean()
     rf.columns = ['rf']
     
     if calc_button>count:
-        model1 = ModifiedCAPM(close, CR, rf)
-        model2 = IntlCAPM( sector, beta_iM, alphas, rf)
-        model3 = apt(close, country, sector, rf)
-        model4 = famafrench(factor, country, close, rf, econ_status)
+        model1 = ModifiedCAPM(close, CR, rf, startdate, enddate)
+        model2 = IntlCAPM( sector, beta_iM, alphas, rf, startdate, enddate)
+        model3 = apt(close, country, sector, rf, startdate, enddate)
+        model4 = famafrench(factor, country, close, rf, econ_status, startdate, enddate)
     
         o1 = [round(x, 4) for x in model1[:3]]
         o2 = [round(x, 4) for x in model2[:3]]
