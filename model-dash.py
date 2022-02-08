@@ -194,7 +194,7 @@ def famafrench(factor, country, close, rf):
     mse =  model.mse_resid
     E_return=model.params[1:]@data.iloc[-1,:-1]+RF.iloc[-1]
     
-    return E_return*252,r2*100,mse,model
+    return E_return*12*100,r2*100,mse,model
 
 
 #=====================================================================================================================
