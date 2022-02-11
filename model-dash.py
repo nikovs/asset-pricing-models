@@ -158,24 +158,24 @@ def famafrench(factor, country, close, rf, econ_status, startdate, enddate):
         FF = pd.read_csv('F-F_Research_Data_5_Factors_2x3_daily.csv', header=2, index_col=0).dropna()
         FF.index = pd.to_datetime(FF.index, format='%Y%m%d')
         FF.columns = ['Mkt_RF', 'SMB', 'HML', 'RMW', 'CMA', 'RF']
-        FF = FF[['SMB', 'HML', 'RMW', 'CMA']]
+        FF = FF[['SMB', 'HML', 'RMW', 'CMA']].astype(float)
     if (factor==3) & (econ_status=='developed market'):  
         #print('3 Factor Fama-French\n\n')
         FF=pd.read_csv('F-F_Research_Data_Factors_Daily.csv', header=3, index_col=0).dropna()
         FF.index = pd.to_datetime(FF.index, format='%Y%m%d')
         FF.columns = ['Mkt_RF', 'SMB', 'HML', 'RF']
-        FF = FF[['SMB', 'HML']]
+        FF = FF[['SMB', 'HML']].astype(float)
         
     if (factor==5) & (econ_status=='emerging market'):
         #print('5 Factor Fama-French\n\n')
         FF = pd.read_csv('Emerging_5_Factors.csv', header=2, index_col=0).dropna().head(390)
         FF.index = pd.to_datetime(FF.index.str.rstrip(), format='%Y%m')
-        FF = FF[['SMB', 'HML', 'RMW', 'CMA']]
+        FF = FF[['SMB', 'HML', 'RMW', 'CMA']].astype(float)
     if (factor==3) & (econ_status=='emerging market'):  
         #print('3 Factor Fama-French\n\n')
         FF = pd.read_csv('Emerging_5_Factors.csv', header=2, index_col=0).dropna().head(390)
         FF.index = pd.to_datetime(FF.index.str.rstrip(), format='%Y%m')
-        FF = FF[['SMB', 'HML']]
+        FF = FF[['SMB', 'HML']].astype(float)
     
     #calculate return and excess return
     close = pd.DataFrame(close).pct_change().dropna()
